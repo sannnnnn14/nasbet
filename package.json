@@ -1,7 +1,7 @@
 {
-  "name": "apex-royale-casino",
-  "version": "2.0.0",
-  "description": "Full-Stack 1xBet Style Casino Platform",
+  "name": "royalspin-3d-casino",
+  "version": "3.0.0",
+  "description": "Full-Stack 3D Casino with Admin Guard & Wallet System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
