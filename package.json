@@ -1,13 +1,15 @@
 {
-  "name": "apex-casino-railway",
-  "version": "1.0.0",
-  "description": "3D Animated Casino App for Railway",
+  "name": "apex-royale-casino",
+  "version": "2.0.0",
+  "description": "Full-Stack 1xBet Style Casino Platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
     "socket.io": "^4.6.1"
   },
   "engines": {
