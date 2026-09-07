@@ -2,65 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Apex Casino | Admin Panel</title>
+  <title>Apex Royale Admin</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    body { background: #0b0f19; color: #fff; font-family: sans-serif; padding: 2rem; }
-    h1 { color: #d4af37; margin-bottom: 1.5rem; }
-    table { width: 100%; border-collapse: collapse; background: #151d2a; border-radius: 8px; overflow: hidden; }
-    th, td { padding: 12px 18px; text-align: left; border-bottom: 1px solid #26334d; }
-    th { background: #1e293b; color: #d4af37; }
-    .btn { border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-    .approve { background: #16a34a; color: white; }
-    .decline { background: #e11d48; color: white; }
+    body { background: #07090e; color: #fff; font-family: sans-serif; padding: 2rem; }
+    h1 { color: #f59e0b; margin-bottom: 2rem; }
+    table { width: 100%; border-collapse: collapse; background: #111827; border-radius: 12px; overflow: hidden; }
+    th, td { padding: 1rem; border-bottom: 1px solid #1f2937; text-align: left; }
+    th { background: #1f2937; color: #f59e0b; }
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .approve { background: #10b981; color: #000; }
+    .decline { background: #ef4444; color: #fff; }
   </style>
 </head>
 <body>
-  <h1>Admin Management Dashboard</h1>
-  <h2>Pending Deposits</h2>
+  <h1>Admin Deposit Approvals</h1>
   <table>
     <thead>
       <tr>
         <th>ID</th>
-        <th>User ID</th>
+        <th>User</th>
         <th>Amount</th>
         <th>Status</th>
         <th>Actions</th>
       </tr>
     </thead>
-    <tbody id="deposit-rows"></tbody>
+    <tbody id="rows"></tbody>
   </table>
 
 <script>
   const socket = io();
-  socket.emit('admin_get_data');
+  socket.emit('admin_init');
 
-  socket.on('admin_data', data => renderDeposits(data.deposits));
-  socket.on('update_deposits', deposits => renderDeposits(deposits));
-
-  function renderDeposits(deposits) {
-    const tbody = document.getElementById('deposit-rows');
+  socket.on('update_deposits', deposits => {
+    const tbody = document.getElementById('rows');
     tbody.innerHTML = '';
     deposits.forEach(d => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${d.id}</td>
-        <td>${d.userId}</td>
+        <td>${d.username}</td>
         <td>$${d.amount.toFixed(2)}</td>
-        <td><strong style="color: ${d.status === 'approved' ? '#16a34a' : d.status === 'declined' ? '#e11d48' : '#eab308'}">${d.status.toUpperCase()}</strong></td>
+        <td><strong style="color:${d.status === 'approved' ? '#10b981' : d.status === 'declined' ? '#ef4444' : '#f59e0b'}">${d.status.toUpperCase()}</strong></td>
         <td>
           ${d.status === 'pending' ? `
             <button class="btn approve" onclick="approve(${d.id})">Approve</button>
             <button class="btn decline" onclick="decline(${d.id})">Decline</button>
-          ` : 'Complete'}
+          ` : 'Processed'}
         </td>
       `;
       tbody.appendChild(tr);
     });
-  }
+  });
 
-  function approve(id) { socket.emit('approve_deposit', id); }
-  function decline(id) { socket.emit('decline_deposit', id); }
+  function approve(id) { socket.emit('approve_dep', id); }
+  function decline(id) { socket.emit('decline_dep', id); }
 </script>
 </body>
 </html>
