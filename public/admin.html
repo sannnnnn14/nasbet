@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Apex Casino | Admin Panel</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { background: #0b0f19; color: #fff; font-family: sans-serif; padding: 2rem; }
+    h1 { color: #d4af37; margin-bottom: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; background: #151d2a; border-radius: 8px; overflow: hidden; }
+    th, td { padding: 12px 18px; text-align: left; border-bottom: 1px solid #26334d; }
+    th { background: #1e293b; color: #d4af37; }
+    .btn { border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .approve { background: #16a34a; color: white; }
+    .decline { background: #e11d48; color: white; }
+  </style>
+</head>
+<body>
+  <h1>Admin Management Dashboard</h1>
+  <h2>Pending Deposits</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>User ID</th>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="deposit-rows"></tbody>
+  </table>
+
+<script>
+  const socket = io();
+  socket.emit('admin_get_data');
+
+  socket.on('admin_data', data => renderDeposits(data.deposits));
+  socket.on('update_deposits', deposits => renderDeposits(deposits));
+
+  function renderDeposits(deposits) {
+    const tbody = document.getElementById('deposit-rows');
+    tbody.innerHTML = '';
+    deposits.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${d.id}</td>
+        <td>${d.userId}</td>
+        <td>$${d.amount.toFixed(2)}</td>
+        <td><strong style="color: ${d.status === 'approved' ? '#16a34a' : d.status === 'declined' ? '#e11d48' : '#eab308'}">${d.status.toUpperCase()}</strong></td>
+        <td>
+          ${d.status === 'pending' ? `
+            <button class="btn approve" onclick="approve(${d.id})">Approve</button>
+            <button class="btn decline" onclick="decline(${d.id})">Decline</button>
+          ` : 'Complete'}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function approve(id) { socket.emit('approve_deposit', id); }
+  function decline(id) { socket.emit('decline_deposit', id); }
+</script>
+</body>
+</html>
