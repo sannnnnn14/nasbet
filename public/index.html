@@ -2,125 +2,211 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Apex Royale | Luxury Online Casino</title>
+  <title>RoyalSpin | Premium 3D Live Casino</title>
   <script src="/socket.io/socket.io.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <!-- Three.js Library for Real 3D Rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold: #f59e0b;
+      --gold-hover: #d97706;
+      --bg-dark: #080b12;
+      --sidebar-bg: #0f1522;
+      --card-bg: #161f33;
+      --felt-green: #064e3b;
+      --red: #dc2626;
+      --black: #1f2937;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg-dark); color: #fff; font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+
+    /* Left Navigation Sidebar (Matching Image Layout) */
+    .sidebar { width: 240px; background: var(--sidebar-bg); border-right: 1px solid #1e293b; display: flex; flex-direction: column; padding: 1.5rem 1rem; }
+    .brand { font-family: 'Cinzel', serif; font-size: 1.6rem; font-weight: 900; color: var(--gold); letter-spacing: 2px; margin-bottom: 2rem; display: flex; align-items: center; gap: 8px; }
+    
+    .nav-group { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: #94a3b8; text-decoration: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .nav-link:hover, .nav-link.active { background: rgba(245,158,11,0.15); color: var(--gold); border-left: 3px solid var(--gold); }
+
+    /* Main Content Container */
+    .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; background: #0b101d; border-bottom: 1px solid #1e293b; sticky: top; }
+    .wallet-box { display: flex; align-items: center; gap: 1rem; background: #000; padding: 6px 16px; border-radius: 30px; border: 1px solid var(--gold); }
+    .btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold-hover)); color: #000; border: none; padding: 8px 18px; border-radius: 20px; font-weight: 800; cursor: pointer; transition: 0.2s; }
+    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(245,158,11,0.4); }
+
+    .page { display: none; padding: 2rem; flex-direction: column; gap: 2rem; }
+    .page.active { display: flex; }
+
+    /* RoyalSpin Hero Banner */
+    .hero-banner {
+      background: linear-gradient(90deg, rgba(8,11,18,0.95) 30%, rgba(0,0,0,0.3)), url('https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=1400&q=80') center/cover;
+      height: 220px; border-radius: 16px; border: 1px solid #1e293b; padding: 2.5rem; display: flex; flex-direction: column; justify-content: center; gap: 10px;
+    }
+
+    /* Game Lobby Grid */
+    .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; }
+    .game-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; border: 1px solid #1e293b; cursor: pointer; transition: 0.3s; }
+    .game-card:hover { transform: translateY(-5px); border-color: var(--gold); }
+    .game-card img { width: 100%; height: 140px; object-fit: cover; }
+    .game-title { padding: 12px; font-weight: 700; text-align: center; }
+
+    /* 3D Roulette Stage */
+    .roulette-container { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; }
+    #canvas-3d-container { width: 100%; max-width: 900px; height: 380px; border-radius: 16px; overflow: hidden; border: 2px solid var(--gold); box-shadow: 0 10px 30px #000; }
+
+    /* Table Felt & Chip Controls */
+    .table-felt { background: var(--felt-green); border: 8px solid #2a1a08; border-radius: 16px; padding: 1.5rem; width: 100%; max-width: 900px; }
+    .grid-36 { display: grid; grid-template-columns: repeat(13, 1fr); gap: 4px; }
+    .cell { aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; cursor: pointer; position: relative; border-radius: 4px; }
+    .cell.red { background: var(--red); }
+    .cell.black { background: var(--black); }
+    .cell.zero { background: #16a34a; }
+    
+    .chip-bar { display: flex; gap: 12px; justify-content: center; margin: 1rem 0; }
+    .chip { width: 44px; height: 44px; border-radius: 50%; border: 3px dashed #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; cursor: pointer; font-size: 0.8rem; }
+    .chip.selected { transform: scale(1.2); border-style: solid; box-shadow: 0 0 10px var(--gold); }
+    .chip-1 { background: #3b82f6; } .chip-5 { background: #10b981; } .chip-25 { background: #f59e0b; } .chip-100 { background: #8b5cf6; }
+
+    .placed-chip { position: absolute; width: 22px; height: 22px; background: var(--gold); color: #000; border-radius: 50%; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; pointer-events: none; }
+
+    /* Modals */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-card { background: var(--card-bg); border: 2px solid var(--gold); padding: 2rem; border-radius: 16px; width: 100%; max-width: 420px; }
+    .modal-card input, .modal-card select { width: 100%; padding: 10px; margin: 10px 0; background: #080b12; border: 1px solid #1e293b; color: #fff; border-radius: 6px; }
+  </style>
 </head>
 <body>
+
+<!-- Left Navigation (Matching Image #2 Game Lobby) -->
+<div class="sidebar">
+  <div class="brand">👑 ROYALSPIN</div>
+  <div class="nav-group">
+    <div class="nav-link active" onclick="switchPage('lobby')">🏠 All Games</div>
+    <div class="nav-link" onclick="switchPage('roulette')">🎰 3D European Roulette</div>
+    <div class="nav-link" onclick="switchPage('wallet')">💳 Deposit & Withdrawal</div>
+    <div class="nav-link" onclick="switchPage('history')">📜 Bet History</div>
+    <a href="/admin.html" class="nav-link" style="color: var(--gold); margin-top: auto;">🛡️ Admin Dashboard</a>
+  </div>
+</div>
+
+<div class="main-wrapper">
+  <header>
+    <div>Welcome back, <strong id="username-display">Guest</strong></div>
+    <div class="wallet-box">
+      <span>Balance: $<strong id="balance-display" style="color: var(--gold);">0.00</strong></span>
+      <button class="btn-gold" onclick="switchPage('wallet')">Wallet</button>
+    </div>
+  </header>
+
+  <!-- LOBBY PAGE -->
+  <div id="lobby-page" class="page active">
+    <div class="hero-banner">
+      <h1 style="font-family:'Cinzel'; color:var(--gold); font-size: 2.2rem;">PLAY BIG. WIN BIGGER.</h1>
+      <p>Experience real-time 3D Casino tables with instant crypto deposits.</p>
+    </div>
+    <h2>Popular Games</h2>
+    <div class="game-grid">
+      <div class="game-card" onclick="switchPage('roulette')">
+        <img src="https://images.unsplash.com/photo-1606167668584-78701c57f13d?auto=format&fit=crop&w=500&q=80" alt="Roulette">
+        <div class="game-title">3D European Roulette</div>
+      </div>
+      <div class="game-card">
+        <img src="https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=500&q=80" alt="Blackjack">
+        <div class="game-title">VIP Blackjack</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3D ROULETTE PAGE -->
+  <div id="roulette-page" class="page">
+    <div class="roulette-container">
+      <!-- Three.js Real 3D Wheel Viewport -->
+      <div id="canvas-3d-container"></div>
+
+      <!-- Chip Selection Bar -->
+      <div class="chip-bar">
+        <div class="chip chip-1 selected" onclick="selectChip(1, this)">$1</div>
+        <div class="chip chip-5" onclick="selectChip(5, this)">$5</div>
+        <div class="chip chip-25" onclick="selectChip(25, this)">$25</div>
+        <div class="chip chip-100" onclick="selectChip(100, this)">$100</div>
+      </div>
+
+      <!-- Table Felt -->
+      <div class="table-felt">
+        <div class="grid-36" id="roulette-grid">
+          <div class="cell zero" onclick="placeBet('number', 0, this)">0</div>
+        </div>
+      </div>
+
+      <button class="btn-gold" style="font-size: 1.2rem; padding: 12px 40px;" onclick="spin3DRoulette()">SPIN 3D WHEEL</button>
+    </div>
+  </div>
+
+  <!-- WALLET DEPOSIT & WITHDRAWAL PAGE -->
+  <div id="wallet-page" class="page">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+      <div class="modal-card" style="max-width:100%;">
+        <h3>Deposit Funds</h3>
+        <label>Payment Method</label>
+        <select id="dep-method">
+          <option value="USDT TRC20">USDT (TRC20 Crypto)</option>
+          <option value="Credit Card">Credit / Debit Card</option>
+          <option value="FastPay">FastPay Mobile Wallet</option>
+        </select>
+        <label>Amount ($)</label>
+        <input type="number" id="dep-amount" value="100">
+        <label>Transaction Hash / Slip ID</label>
+        <input type="text" id="dep-tx" placeholder="e.g. 0x8a92f... or Receipt No.">
+        <button class="btn-gold" style="width:100%; margin-top:10px;" onclick="submitDeposit()">Submit Deposit</button>
+      </div>
+
+      <div class="modal-card" style="max-width:100%;">
+        <h3>Withdraw Funds</h3>
+        <label>Method</label>
+        <select id="with-method">
+          <option value="USDT TRC20">USDT TRC20 Wallet</option>
+          <option value="Bank Transfer">International Bank Wire</option>
+        </select>
+        <label>Amount ($)</label>
+        <input type="number" id="with-amount" value="50">
+        <label>Wallet Address / IBAN</label>
+        <input type="text" id="with-addr" placeholder="TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t">
+        <button class="btn-gold" style="width:100%; margin-top:10px;" onclick="submitWithdrawal()">Request Withdrawal</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Auth Modal -->
 <div id="auth-modal" class="modal">
   <div class="modal-card">
-    <h2 class="brand">APEX ROYALE</h2>
-    <p style="color: #94a3b8; margin-bottom: 1rem;">Login or Register to Play</p>
+    <h2 style="color:var(--gold); font-family:'Cinzel'; text-align:center;">ROYALSPIN LOGIN</h2>
     <input type="text" id="auth-user" placeholder="Username">
     <input type="password" id="auth-pass" placeholder="Password">
-    <div style="display: flex; gap: 10px; margin-top: 1rem;">
+    <div style="display:flex; gap:10px; margin-top:10px;">
       <button class="btn-gold" style="flex:1" onclick="handleAuth('login')">Login</button>
       <button class="btn-gold" style="flex:1" onclick="handleAuth('register')">Register</button>
     </div>
   </div>
 </div>
 
-<header>
-  <div class="brand">APEX ROYALE</div>
-  <div class="wallet">
-    <span>Player: <strong id="user-display">--</strong></span>
-    <span>Balance: $<strong id="balance-display" style="color: var(--gold);">0.00</strong></span>
-    <button class="btn-gold" onclick="requestDeposit()">Deposit</button>
-  </div>
-</header>
-
-<div class="nav-tabs">
-  <button class="tab-btn active" onclick="switchTab('roulette')">🎰 Live Roulette</button>
-  <button class="tab-btn" onclick="switchTab('slots')">🎰 VIP Slots</button>
-  <button class="tab-btn" onclick="switchTab('crash')">🚀 Crash Game</button>
-</div>
-
-<!-- ROULETTE TAB -->
-<div id="roulette-page" class="page active">
-  <div class="roulette-wrapper">
-    <div class="wheel-hostess-container">
-      <div class="hostess-card">
-        <h3 style="color:var(--gold);">Live Dealer</h3>
-        <p>European VIP Table #1</p>
-      </div>
-      <div style="position: relative;">
-        <canvas id="wheelCanvas" width="400" height="400"></canvas>
-      </div>
-    </div>
-
-    <!-- Interactive Chip Selection -->
-    <div class="chip-bar">
-      <div class="chip chip-1 selected" onclick="selectChip(1, this)">$1</div>
-      <div class="chip chip-5" onclick="selectChip(5, this)">$5</div>
-      <div class="chip chip-25" onclick="selectChip(25, this)">$25</div>
-      <div class="chip chip-100" onclick="selectChip(100, this)">$100</div>
-      <div class="chip chip-500" onclick="selectChip(500, this)">$500</div>
-    </div>
-
-    <!-- 1xBet Table Felt Layout -->
-    <div class="table-felt">
-      <div class="betting-grid" id="number-grid">
-        <div class="bet-cell zero" onclick="placeBet('number', 0, this)">0</div>
-      </div>
-      <div class="outside-grid">
-        <div class="outside-cell" onclick="placeBet('red', 'RED', this)">RED</div>
-        <div class="outside-cell" onclick="placeBet('black', 'BLACK', this)">BLACK</div>
-        <div class="outside-cell" onclick="placeBet('even', 'EVEN', this)">EVEN</div>
-        <div class="outside-cell" onclick="placeBet('odd', 'ODD', this)">ODD</div>
-      </div>
-    </div>
-
-    <button class="btn-gold" style="font-size: 1.2rem; width: 300px;" onclick="spinRoulette()">SPIN WHEEL</button>
-  </div>
-</div>
-
-<!-- SLOTS TAB -->
-<div id="slots-page" class="page">
-  <div class="slots-container">
-    <h2 style="color:var(--gold);">VIP Diamond Slots</h2>
-    <div class="reels">
-      <div class="reel" id="r1">💎</div>
-      <div class="reel" id="r2">💎</div>
-      <div class="reel" id="r3">💎</div>
-    </div>
-    <div style="margin-bottom: 1.5rem;">
-      <label>Bet Amount: $</label>
-      <input type="number" id="slot-bet" value="10" style="padding: 0.5rem; width: 100px; background: #000; color: #fff; border: 1px solid var(--gold); border-radius: 6px;">
-    </div>
-    <button class="btn-gold" onclick="spinSlots()">SPIN SLOTS</button>
-  </div>
-</div>
-
-<!-- CRASH TAB -->
-<div id="crash-page" class="page">
-  <div class="slots-container">
-    <h2 style="color:var(--gold);">Space Crash</h2>
-    <div style="font-size: 4rem; font-weight: 800; color: var(--gold); margin: 2rem 0;" id="crash-mult">1.00x</div>
-    <p>Multiplayer Engine Syncing...</p>
-  </div>
-</div>
-
 <script>
 const socket = io();
-let selectedChipValue = 1;
-let currentWheelAngle = 0;
-let isSpinning = false;
-
-const ROULETTE_NUMBERS = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+let selectedChipVal = 1;
 const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
 
-// Authenticate on Load
-const token = localStorage.getItem('casino_token');
+// Auth Check
+const token = localStorage.getItem('royalspin_token');
 if (token) socket.emit('auth', token);
 
 async function handleAuth(type) {
   const user = document.getElementById('auth-user').value;
   const pass = document.getElementById('auth-pass').value;
 
-  const res = await fetch(`/api/${type}`, {
+  const res = await fetch(`/api/auth/${type}`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ username: user, password: pass })
@@ -129,141 +215,160 @@ async function handleAuth(type) {
   const data = await res.json();
   if (data.error) return alert(data.error);
 
-  localStorage.setItem('casino_token', data.token);
+  localStorage.setItem('royalspin_token', data.token);
   document.getElementById('auth-modal').style.display = 'none';
   socket.emit('auth', data.token);
 }
 
 socket.on('user_state', u => {
   document.getElementById('auth-modal').style.display = 'none';
-  document.getElementById('user-display').innerText = u.username;
+  document.getElementById('username-display').innerText = u.username;
   document.getElementById('balance-display').innerText = u.balance.toFixed(2);
 });
 
 socket.on('balance_update', bal => document.getElementById('balance-display').innerText = bal.toFixed(2));
+socket.on('notice', m => alert(m));
 socket.on('err_msg', m => alert(m));
-socket.on('dep_notice', m => alert(m));
 
-// Generate 1xBet Grid Numbers
-const numGrid = document.getElementById('number-grid');
-for (let i = 1; i <= 36; i++) {
+// Build Grid
+const grid = document.getElementById('roulette-grid');
+for(let i=1; i<=36; i++) {
   const cell = document.createElement('div');
-  cell.className = `bet-cell ${RED_NUMBERS.includes(i) ? 'red' : 'black'}`;
+  cell.className = `cell ${RED_NUMBERS.includes(i) ? 'red' : 'black'}`;
   cell.innerText = i;
   cell.onclick = () => placeBet('number', i, cell);
-  numGrid.appendChild(cell);
+  grid.appendChild(cell);
 }
 
 function selectChip(val, el) {
-  selectedChipValue = val;
+  selectedChipVal = val;
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
 }
 
-function placeBet(type, target, element) {
-  socket.emit('roulette_bet', { type, target, amount: selectedChipValue });
+function placeBet(type, target, el) {
+  socket.emit('roulette_place_bet', { type, target, amount: selectedChipVal });
   const chip = document.createElement('div');
   chip.className = 'placed-chip';
-  chip.innerText = `$${selectedChipValue}`;
-  element.appendChild(chip);
+  chip.innerText = `$${selectedChipVal}`;
+  el.appendChild(chip);
 }
 
-function switchTab(tab) {
+function switchPage(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(`${tab}-page`).classList.add('active');
-  event.target.classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById(`${pageId}-page`).classList.add('active');
+  if(pageId === 'roulette') init3DRoulette();
 }
 
-// 3D Roulette Canvas Renderer
-const canvas = document.getElementById('wheelCanvas');
-const ctx = canvas.getContext('2d');
+function submitDeposit() {
+  const method = document.getElementById('dep-method').value;
+  const amount = document.getElementById('dep-amount').value;
+  const txHash = document.getElementById('dep-tx').value;
+  socket.emit('request_deposit', { method, amount, txHash });
+}
 
-function drawWheel(angle, ballAngle, ballRad) {
-  const cx = 200, cy = 200, r = 180;
-  ctx.clearRect(0, 0, 400, 400);
+function submitWithdrawal() {
+  const method = document.getElementById('with-method').value;
+  const amount = document.getElementById('with-amount').value;
+  const address = document.getElementById('with-addr').value;
+  socket.emit('request_withdrawal', { method, amount, address });
+}
 
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#d4af37'; ctx.fill();
+/* ====================================================================
+   REAL THREE.JS 3D ROULETTE ENGINE WITH METALLIC MATERIALS & LIGHTING
+   ==================================================================== */
+let scene, camera, renderer, wheelMesh, ballMesh;
+let is3DInitialized = false;
 
-  const slice = (Math.PI * 2) / ROULETTE_NUMBERS.length;
-  for (let i = 0; i < ROULETTE_NUMBERS.length; i++) {
-    const a = angle + i * slice;
-    const num = ROULETTE_NUMBERS[i];
-    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r - 20, a, a + slice);
-    ctx.fillStyle = num === 0 ? '#16a34a' : RED_NUMBERS.includes(num) ? '#dc2626' : '#1f2937';
-    ctx.fill(); ctx.stroke();
+function init3DRoulette() {
+  if (is3DInitialized) return;
+  is3DInitialized = true;
 
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate(a + slice / 2);
-    ctx.textAlign = "right"; ctx.fillStyle = "#fff"; ctx.font = "bold 12px Poppins";
-    ctx.fillText(num, r - 28, 4); ctx.restore();
+  const container = document.getElementById('canvas-3d-container');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x080b12);
+
+  camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+  camera.position.set(0, 12, 14);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.shadowMap.enabled = true;
+  container.appendChild(renderer.domElement);
+
+  // Studio Lighting
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xf59e0b, 1.2);
+  dirLight.position.set(5, 15, 5);
+  dirLight.castShadow = true;
+  scene.add(dirLight);
+
+  // 3D Brass Outer Bowl
+  const bowlGeo = new THREE.CylinderGeometry(5, 4, 1, 64);
+  const bowlMat = new THREE.MeshStandardMaterial({ color: 0x2a1a08, metalness: 0.8, roughness: 0.2 });
+  const bowl = new THREE.Mesh(bowlGeo, bowlMat);
+  scene.add(bowl);
+
+  // 3D Wheel Cylinder
+  const wheelGeo = new THREE.CylinderGeometry(4.2, 4.2, 0.8, 37);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.1 });
+  wheelMesh = new THREE.Mesh(wheelGeo, wheelMat);
+  wheelMesh.position.y = 0.2;
+  scene.add(wheelMesh);
+
+  // 3D Marble Ball
+  const ballGeo = new THREE.SphereGeometry(0.2, 32, 32);
+  const ballMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 });
+  ballMesh = new THREE.Mesh(ballGeo, ballMat);
+  ballMesh.position.set(3.8, 0.8, 0);
+  scene.add(ballMesh);
+
+  function renderLoop() {
+    requestAnimationFrame(renderLoop);
+    renderer.render(scene, camera);
   }
-
-  // Ball Render
-  if (ballRad > 0) {
-    const bx = cx + Math.cos(ballAngle) * ballRad;
-    const by = cy + Math.sin(ballAngle) * ballRad;
-    ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff'; ctx.shadowBlur = 8; ctx.shadowColor = '#fff'; ctx.fill(); ctx.shadowBlur = 0;
-  }
+  renderLoop();
 }
 
-function spinRoulette() {
-  if (!isSpinning) socket.emit('roulette_spin');
+function spin3DRoulette() {
+  socket.emit('roulette_spin_request');
 }
 
-socket.on('roulette_start_spin', data => {
-  isSpinning = true;
-  const targetIndex = data.winningIndex;
-  const slice = (Math.PI * 2) / 37;
-  const targetAngle = (Math.PI * 2) - (targetIndex * slice) - (slice / 2);
-
+socket.on('roulette_start_3d_spin', data => {
   const start = performance.now();
-  const duration = 8000;
+  const duration = 9000;
 
-  function frame(now) {
-    const progress = Math.min((now - start) / duration, 1);
+  function animate(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
     const ease = 1 - Math.pow(1 - progress, 3);
 
-    currentWheelAngle = (12 * Math.PI * 2 + targetAngle) * ease;
-    const ballAngle = -(18 * Math.PI * 2 * ease);
-    const ballRad = 160 - (65 * ease);
+    // Spin Wheel Mesh in 3D Space
+    if(wheelMesh) wheelMesh.rotation.y = ease * Math.PI * 20;
 
-    drawWheel(currentWheelAngle, ballAngle, ballRad);
+    // Orbit Ball around Track
+    if(ballMesh) {
+      const ballAngle = -(ease * Math.PI * 30);
+      const radius = 3.8 - (1.2 * ease); // Drops into pocket
+      ballMesh.position.x = Math.cos(ballAngle) * radius;
+      ballMesh.position.z = Math.sin(ballAngle) * radius;
+    }
 
-    if (progress < 1) requestAnimationFrame(frame);
-    else isSpinning = false;
+    if (progress < 1) requestAnimationFrame(animate);
   }
-  requestAnimationFrame(frame);
+  requestAnimationFrame(animate);
 });
 
 socket.on('roulette_result', res => {
   setTimeout(() => {
-    alert(`Winning Number: ${res.winningNumber} (${res.isRed ? 'RED' : 'BLACK'}) | Total Won: $${res.payout}`);
+    alert(`3D Result: Winning Pocket #${res.winningNumber}! Payout: $${res.payout}`);
     document.querySelectorAll('.placed-chip').forEach(c => c.remove());
-  }, 400);
+  }, 500);
 });
-
-// Slots Execution
-function spinSlots() {
-  const bet = document.getElementById('slot-bet').value;
-  socket.emit('slots_spin', { bet });
-}
-
-socket.on('slots_result', data => {
-  document.getElementById('r1').innerText = data.reels[0];
-  document.getElementById('r2').innerText = data.reels[1];
-  document.getElementById('r3').innerText = data.reels[2];
-  document.getElementById('balance-display').innerText = data.balance.toFixed(2);
-  if (data.payout > 0) alert(`BIG WIN! Won $${data.payout}`);
-});
-
-function requestDeposit() {
-  const amount = prompt("Enter Deposit Amount ($):");
-  if (amount && amount > 0) socket.emit('request_deposit', { amount });
-}
-
-drawWheel(0, 0, 0);
 </script>
 </body>
 </html>
