@@ -24,7 +24,7 @@ const betHistory = [];
 // Seed Default Admin
 (async () => {
   const hash = await bcrypt.hash('admin123', 10);
-  users['admin'] = { username: 'admin', password: hash, balance: 1000000, role: 'admin' };
+  users['admin'] = { username: 'admin', password: hash, balance: 1518049, role: 'admin' };
 })();
 
 // Auth Endpoints
@@ -35,10 +35,10 @@ app.post('/api/auth/register', async (req, res) => {
 
   const role = (adminCode === ADMIN_KEY) ? 'admin' : 'user';
   const hashedPassword = await bcrypt.hash(password, 10);
-  users[username.toLowerCase()] = { username, password: hashedPassword, balance: 1250.00, role };
+  users[username.toLowerCase()] = { username, password: hashedPassword, balance: 1000.00, role };
 
   const token = jwt.sign({ username, role }, JWT_SECRET);
-  res.json({ token, username, balance: 1250.00, role });
+  res.json({ token, username, balance: 1000.00, role });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -53,24 +53,7 @@ app.post('/api/auth/login', async (req, res) => {
   res.json({ token, username: user.username, balance: user.balance, role: user.role });
 });
 
-// Admin Route Guard
-function requireAdmin(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
-  const token = authHeader.split(' ')[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'admin') return res.status(403).json({ error: 'Admin Access Required' });
-    req.user = decoded;
-    next();
-  } catch (e) {
-    res.status(401).json({ error: 'Invalid Token' });
-  }
-}
-
-app.get('/api/admin/verify', requireAdmin, (req, res) => res.json({ ok: true }));
-
-// European Roulette Wheel Wheel Numbers in Physical Sequence
+// European Roulette Wheel Numbers in Physical Sequence (Clockwise)
 const WHEEL_NUMBERS = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
 
@@ -91,29 +74,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('request_deposit', (data) => {
-    if (!currentUser) return;
-    const dep = { id: Date.now(), username: currentUser.username, method: data.method, amount: parseFloat(data.amount), txHash: data.txHash || 'N/A', status: 'pending', date: new Date().toISOString() };
-    deposits.push(dep);
-    io.emit('admin_deposits_update', deposits);
-    socket.emit('notice', 'Deposit Submitted! Awaiting Admin verification.');
-  });
-
-  socket.on('request_withdrawal', (data) => {
-    if (!currentUser) return;
-    const amt = parseFloat(data.amount);
-    if (currentUser.balance < amt) return socket.emit('err_msg', 'Insufficient Balance');
-
-    currentUser.balance -= amt;
-    withdrawals.push({ id: Date.now(), username: currentUser.username, method: data.method, address: data.address, amount: amt, status: 'pending', date: new Date().toISOString() });
-    socket.emit('balance_update', currentUser.balance);
-    io.emit('admin_withdrawals_update', withdrawals);
-    socket.emit('notice', 'Withdrawal Request Received.');
-  });
-
   socket.on('roulette_place_bet', (bet) => {
     if (!currentUser) return;
-    if (currentUser.balance < bet.amount) return socket.emit('err_msg', 'Insufficient funds');
+    if (currentUser.balance < bet.amount) return socket.emit('err_msg', 'Insufficient Balance');
 
     currentUser.balance -= bet.amount;
     if (!activeBets[socket.id]) activeBets[socket.id] = [];
@@ -123,15 +86,23 @@ io.on('connection', (socket) => {
     socket.emit('bet_confirmed', bet);
   });
 
+  socket.on('roulette_clear_bets', () => {
+    if (!currentUser || !activeBets[socket.id]) return;
+    const refunded = activeBets[socket.id].reduce((sum, b) => sum + b.amount, 0);
+    currentUser.balance += refunded;
+    activeBets[socket.id] = [];
+    socket.emit('balance_update', currentUser.balance);
+    socket.emit('bets_cleared');
+  });
+
   socket.on('roulette_spin_request', () => {
     if (!currentUser) return;
     const userBets = activeBets[socket.id] || [];
-    if (userBets.length === 0) return socket.emit('err_msg', 'Please place bets on the table first!');
+    if (userBets.length === 0) return socket.emit('err_msg', 'Place your bets on the felt first!');
 
     const winningIndex = Math.floor(Math.random() * WHEEL_NUMBERS.length);
     const winningNumber = WHEEL_NUMBERS[winningIndex];
 
-    // Broadcast spin details to triggering client
     socket.emit('roulette_spin_start', { winningIndex, winningNumber });
 
     setTimeout(() => {
@@ -145,6 +116,9 @@ io.on('connection', (socket) => {
         else if (b.type === 'odd' && winningNumber % 2 !== 0) { win = true; mult = 2; }
         else if (b.type === '1to18' && winningNumber >= 1 && winningNumber <= 18) { win = true; mult = 2; }
         else if (b.type === '19to36' && winningNumber >= 19 && winningNumber <= 36) { win = true; mult = 2; }
+        else if (b.type === '1st12' && winningNumber >= 1 && winningNumber <= 12) { win = true; mult = 3; }
+        else if (b.type === '2nd12' && winningNumber >= 13 && winningNumber <= 24) { win = true; mult = 3; }
+        else if (b.type === '3rd12' && winningNumber >= 25 && winningNumber <= 36) { win = true; mult = 3; }
 
         if (win) totalPayout += b.amount * mult;
       });
@@ -152,39 +126,11 @@ io.on('connection', (socket) => {
       currentUser.balance += totalPayout;
       activeBets[socket.id] = [];
 
-      betHistory.unshift({ id: Date.now(), user: currentUser.username, game: 'European Roulette', winningNumber, payout: totalPayout, date: new Date().toLocaleTimeString() });
-
       socket.emit('roulette_result', { winningNumber, payout: totalPayout });
       socket.emit('balance_update', currentUser.balance);
-      io.emit('history_update', betHistory);
-    }, 7000);
-  });
-
-  socket.on('admin_init', () => {
-    if (currentUser && currentUser.role === 'admin') {
-      socket.emit('admin_data', { deposits, withdrawals, users, betHistory });
-    }
-  });
-
-  socket.on('admin_approve_deposit', (id) => {
-    const dep = deposits.find(d => d.id === id);
-    if (dep && dep.status === 'pending') {
-      dep.status = 'approved';
-      if (users[dep.username.toLowerCase()]) {
-        users[dep.username.toLowerCase()].balance += dep.amount;
-      }
-      io.emit('admin_deposits_update', deposits);
-    }
-  });
-
-  socket.on('admin_approve_withdrawal', (id) => {
-    const w = withdrawals.find(item => item.id === id);
-    if (w && w.status === 'pending') {
-      w.status = 'approved';
-      io.emit('admin_withdrawals_update', withdrawals);
-    }
+    }, 6000);
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`RoyalSpin HD running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Classic Tabletop Casino running on port ${PORT}`));
