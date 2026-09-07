@@ -2,122 +2,108 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>RoyalSpin | Admin Guarded Dashboard</title>
+  <title>ROYALSPIN | Admin Portal</title>
   <script src="/socket.io/socket.io.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-    body { background: #080b12; color: #fff; font-family: 'Inter', sans-serif; padding: 2rem; }
-    h1 { color: #f59e0b; margin-bottom: 1.5rem; }
-    .card { background: #0f1522; border: 1px solid #1e293b; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 12px; border-bottom: 1px solid #1e293b; text-align: left; }
-    th { color: #f59e0b; }
-    .btn { padding: 6px 14px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    body { background: #06090e; color: #fff; font-family: 'Inter', sans-serif; padding: 2rem; }
+    h1 { color: #d4af37; margin-bottom: 1.5rem; }
+    .panel { background: #0d131f; border: 1px solid #1a2333; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { padding: 12px; border-bottom: 1px solid #1a2333; text-align: left; font-size: 0.9rem; }
+    th { color: #d4af37; }
+    .btn { padding: 6px 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
     .btn-approve { background: #10b981; color: #000; }
-    .btn-decline { background: #dc2626; color: #fff; }
-    
-    #admin-auth-modal { position: fixed; inset: 0; background: #080b12; display: flex; justify-content: center; align-items: center; z-index: 999; }
-    .login-box { background: #0f1522; padding: 2rem; border-radius: 12px; border: 1px solid #f59e0b; width: 320px; text-align: center; }
-    .login-box input { width: 100%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #1e293b; color: #fff; }
+    .guard-backdrop { position: fixed; inset: 0; background: #06090e; display: flex; justify-content: center; align-items: center; z-index: 100; }
+    .guard-box { background: #0d131f; border: 1px solid #d4af37; padding: 2rem; border-radius: 8px; width: 320px; text-align: center; }
+    .guard-box input { width: 100%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #1a2333; color: #fff; }
   </style>
 </head>
 <body>
 
-<!-- Admin Guard Login Screen -->
-<div id="admin-auth-modal">
-  <div class="login-box">
-    <h2 style="color:#f59e0b;">ADMIN ACCESS</h2>
-    <input type="text" id="admin-user" placeholder="Admin Username (admin)">
-    <input type="password" id="admin-pass" placeholder="Password (admin123)">
-    <button class="btn btn-approve" style="width:100%; padding:10px; margin-top:10px;" onclick="verifyAdminLogin()">Login to Dashboard</button>
+<div id="admin-guard" class="guard-backdrop">
+  <div class="guard-box">
+    <h3 style="color:#d4af37; margin-bottom:10px;">ADMIN LOGIN</h3>
+    <input type="text" id="admin-user" placeholder="Admin Username">
+    <input type="password" id="admin-pass" placeholder="Password">
+    <button class="btn btn-approve" style="width:100%; padding:10px;" onclick="loginAdmin()">AUTHENTICATE</button>
   </div>
 </div>
 
-<h1>RoyalSpin Admin Control Panel</h1>
+<h1>ROYALSPIN MANAGEMENT</h1>
 
-<div class="card">
+<div class="panel">
   <h2>Pending Deposits</h2>
   <table>
-    <thead>
-      <tr><th>ID</th><th>User</th><th>Method</th><th>Amount</th><th>Tx Hash</th><th>Status</th><th>Action</th></tr>
-    </thead>
-    <tbody id="dep-rows"></tbody>
+    <thead><tr><th>User</th><th>Method</th><th>Amount</th><th>Tx Hash</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody id="deposit-rows"></tbody>
   </table>
 </div>
 
-<div class="card">
+<div class="panel">
   <h2>Pending Withdrawals</h2>
   <table>
-    <thead>
-      <tr><th>ID</th><th>User</th><th>Method</th><th>Amount</th><th>Address</th><th>Status</th><th>Action</th></tr>
-    </thead>
-    <tbody id="with-rows"></tbody>
+    <thead><tr><th>User</th><th>Method</th><th>Amount</th><th>Address</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody id="withdrawal-rows"></tbody>
   </table>
 </div>
 
 <script>
 const socket = io();
 
-async function verifyAdminLogin() {
-  const u = document.getElementById('admin-user').value;
-  const p = document.getElementById('admin-pass').value;
+async function loginAdmin() {
+  const username = document.getElementById('admin-user').value;
+  const password = document.getElementById('admin-pass').value;
 
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ username: u, password: p })
+    body: JSON.stringify({ username, password })
   });
 
   const data = await res.json();
-  if (data.role !== 'admin') return alert('Access Denied: Admin Rights Required!');
+  if (data.role !== 'admin') return alert('Access Denied');
 
-  localStorage.setItem('royalspin_admin_token', data.token);
-  document.getElementById('admin-auth-modal').style.display = 'none';
-  
+  document.getElementById('admin-guard').style.display = 'none';
   socket.emit('auth', data.token);
   socket.emit('admin_init');
 }
 
 socket.on('admin_deposits_update', deposits => {
-  const tbody = document.getElementById('dep-rows');
+  const tbody = document.getElementById('deposit-rows');
   tbody.innerHTML = '';
   deposits.forEach(d => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${d.id}</td>
-      <td>${d.username}</td>
-      <td>${d.method}</td>
-      <td>$${d.amount.toFixed(2)}</td>
-      <td><code>${d.txHash}</code></td>
-      <td><strong style="color:${d.status === 'approved' ? '#10b981' : '#f59e0b'}">${d.status.toUpperCase()}</strong></td>
-      <td>
-        ${d.status === 'pending' ? `<button class="btn btn-approve" onclick="approveDep(${d.id})">Approve</button> <button class="btn btn-decline" onclick="declineDep(${d.id})">Decline</button>` : 'Done'}
-      </td>
+    tbody.innerHTML += `
+      <tr>
+        <td>${d.username}</td>
+        <td>${d.method}</td>
+        <td>$${d.amount.toFixed(2)}</td>
+        <td><code>${d.txHash}</code></td>
+        <td><strong>${d.status.toUpperCase()}</strong></td>
+        <td>${d.status === 'pending' ? `<button class="btn btn-approve" onclick="approveDep(${d.id})">Approve</button>` : 'Done'}</td>
+      </tr>
     `;
-    tbody.appendChild(tr);
   });
 });
 
 socket.on('admin_withdrawals_update', withdrawals => {
-  const tbody = document.getElementById('with-rows');
+  const tbody = document.getElementById('withdrawal-rows');
   tbody.innerHTML = '';
   withdrawals.forEach(w => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${w.id}</td>
-      <td>${w.username}</td>
-      <td>${w.method}</td>
-      <td>$${w.amount.toFixed(2)}</td>
-      <td><code>${w.address}</code></td>
-      <td><strong>${w.status.toUpperCase()}</strong></td>
-      <td>${w.status === 'pending' ? `<button class="btn btn-approve" onclick="approveWith(${w.id})">Approve & Pay</button>` : 'Done'}</td>
+    tbody.innerHTML += `
+      <tr>
+        <td>${w.username}</td>
+        <td>${w.method}</td>
+        <td>$${w.amount.toFixed(2)}</td>
+        <td><code>${w.address}</code></td>
+        <td><strong>${w.status.toUpperCase()}</strong></td>
+        <td>${w.status === 'pending' ? `<button class="btn btn-approve" onclick="approveWith(${w.id})">Approve & Pay</button>` : 'Done'}</td>
+      </tr>
     `;
-    tbody.appendChild(tr);
   });
 });
 
 function approveDep(id) { socket.emit('admin_approve_deposit', id); }
-function declineDep(id) { socket.emit('admin_decline_deposit', id); }
 function approveWith(id) { socket.emit('admin_approve_withdrawal', id); }
 </script>
 </body>
