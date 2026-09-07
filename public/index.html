@@ -2,392 +2,1008 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ROYALSPIN | European Roulette</title>
-  <script src="/socket.io/socket.io.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ROYALSPIN | Roulette</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; user-select: none; }
-    body { background: #06090e; color: #fff; height: 100vh; display: flex; overflow: hidden; }
-    :root {
-      --gold: #d4af37;
-      --gold-light: #fef08a;
-      --bg-main: #06090e;
-      --panel-bg: #0d131f;
-      --felt-green: #0b4f32;
-      --felt-dark: #073823;
-      --roulette-red: #cc1100;
-      --roulette-black: #171717;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* SIDEBAR — matches reference panel #2 */
-    .sidebar { width: 220px; background: #080c14; border-right: 1px solid #1a2333; display: flex; flex-direction: column; padding: 1rem; flex-shrink: 0; }
-    .brand { font-family: 'Cinzel', serif; font-size: 1.4rem; font-weight: 900; color: var(--gold); letter-spacing: 2px; display: flex; align-items: center; gap: 8px; margin-bottom: 2rem; }
-    .nav-list { display: flex; flex-direction: column; gap: 6px; flex: 1; }
-    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: #8a99ad; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
-    .nav-item:hover, .nav-item.active { background: #131c2d; color: var(--gold); border-left: 3px solid var(--gold); }
-
-    .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
-    header { background: #0a0f1a; border-bottom: 1px solid #1a2333; height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; flex-shrink: 0; }
-    .header-left { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 0.95rem; }
-    .header-right { display: flex; align-items: center; gap: 1rem; }
-    .balance-pill { background: #000; border: 1px solid var(--gold); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; display: flex; gap: 8px; }
-    .btn-gold { background: linear-gradient(180deg, #f3cf65 0%, #a88118 100%); color: #000; border: none; padding: 8px 18px; border-radius: 4px; font-weight: 800; font-size: 0.85rem; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
-
-    .page { display: none; padding: 1.5rem; flex-direction: column; gap: 1.5rem; }
-    .page.active { display: flex; }
-
-    /* ROULETTE FRAME — exact UI from panel #4 */
-    .roulette-frame {
-      background: #080c14; border: 1px solid #1e2a3e; border-radius: 12px; overflow: hidden;
-      display: flex; flex-direction: column; max-width: 1100px; margin: 0 auto; width: 100%;
-    }
-    .roulette-header-bar {
-      background: #0d1421; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e2a3e;
-    }
-    .game-title-tag { font-family: 'Cinzel'; color: var(--gold); font-weight: 800; letter-spacing: 1px; }
-    .timer-badge { background: #1a2638; border: 1px solid #2e3e56; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 700; color: #38bdf8; }
-
-    .roulette-stage { display: grid; grid-template-columns: 420px 1fr; background: #05080e; min-height: 380px; }
-    .wheel-viewport {
-      background: radial-gradient(circle at center, #111827 0%, #030508 100%);
-      display: flex; justify-content: center; align-items: center; border-right: 1px solid #1a2333; padding: 1rem;
-    }
-    #roulette-canvas { width: 340px; height: 340px; display: block; }
-
-    .felt-viewport { background: var(--felt-green); padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; box-shadow: inset 0 0 50px rgba(0,0,0,0.6); }
-    .table-grid { display: grid; grid-template-columns: 45px repeat(12, 1fr); grid-template-rows: repeat(3, 48px); gap: 2px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4); border-radius: 4px; padding: 2px; }
-    .table-cell { background: var(--felt-dark); display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 0.95rem; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); transition: 0.1s; position: relative; }
-    .table-cell:hover { filter: brightness(1.3); }
-    .table-cell.red { background: var(--roulette-red); }
-    .table-cell.black { background: var(--roulette-black); }
-    .table-cell.zero { grid-row: span 3; background: #0f766e; font-size: 1.2rem; }
-
-    .outside-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 6px; }
-    .outside-cell { background: var(--felt-dark); border: 1px solid rgba(255,255,255,0.3); height: 40px; display: flex; justify-content: center; align-items: center; font-weight: 700; font-size: 0.8rem; cursor: pointer; border-radius: 4px; }
-    .outside-cell:hover { background: rgba(255,255,255,0.1); }
-
-    .roulette-controls { background: #0a0f18; padding: 1rem 2rem; border-top: 1px solid #1a2333; display: flex; justify-content: space-between; align-items: center; }
-    .chip-selector { display: flex; gap: 12px; align-items: center; }
-    .casino-chip {
-      width: 44px; height: 44px; border-radius: 50%; border: 4px dashed #fff; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 0.75rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    }
-    .casino-chip.selected { transform: scale(1.15) translateY(-4px); border-style: solid; box-shadow: 0 0 15px var(--gold); }
-    .chip-1 { background: #2563eb; color: #fff; }
-    .chip-5 { background: #059669; color: #fff; }
-    .chip-25 { background: #d97706; color: #fff; }
-    .chip-100 { background: #7c3aed; color: #fff; }
-
-    .placed-chip-badge {
-      position: absolute; width: 22px; height: 22px; background: var(--gold); color: #000; border-radius: 50%; border: 2px solid #fff; font-size: 0.65rem; font-weight: 900; display: flex; justify-content: center; align-items: center; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+    body {
+      background: #0a0e17;
+      font-family: 'Inter', sans-serif;
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(6px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-    .modal-box { background: var(--panel-bg); border: 1px solid var(--gold); padding: 2rem; border-radius: 12px; width: 100%; max-width: 400px; }
-    .modal-box input, .modal-box select { width: 100%; padding: 10px; margin: 8px 0 16px 0; background: #06090e; border: 1px solid #1a2333; color: #fff; border-radius: 4px; }
+    /* ===== MOBILE FIRST ===== */
+    .app-container {
+      max-width: 480px;
+      margin: 0 auto;
+      background: #0d1421;
+      min-height: 100vh;
+      position: relative;
+    }
 
-    /* wallet page quick */
-    #wallet-page .modal-box { max-width: 100%; }
-    #wallet-page { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 900px; }
+    /* HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #0a0f1a;
+      border-bottom: 1px solid #1a2333;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      font-family: 'Cinzel', serif;
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #d4af37;
+      letter-spacing: 1px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .balance-mobile {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: #131c2d;
+      padding: 4px 10px;
+      border-radius: 12px;
+      border: 1px solid #1a2333;
+    }
+
+    .balance-mobile .amount {
+      color: #d4af37;
+    }
+
+    .profile-trigger {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #d4af37;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      color: #000;
+      cursor: pointer;
+      border: 2px solid #d4af37;
+      flex-shrink: 0;
+    }
+
+    /* ===== SIDEBAR OVERLAY (Mobile Menu) ===== */
+    .sidebar-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .sidebar-overlay.active {
+      display: block;
+      opacity: 1;
+    }
+
+    .sidebar-menu {
+      position: fixed;
+      top: 0;
+      right: -300px;
+      width: 280px;
+      height: 100%;
+      background: #080c14;
+      z-index: 101;
+      transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 20px;
+      overflow-y: auto;
+      border-left: 1px solid #1a2333;
+    }
+
+    .sidebar-menu.open {
+      right: 0;
+    }
+
+    .sidebar-menu .close-btn {
+      background: none;
+      border: none;
+      color: #8a99ad;
+      font-size: 1.5rem;
+      cursor: pointer;
+      float: right;
+      padding: 4px 8px;
+    }
+
+    .sidebar-menu .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 0;
+      border-bottom: 1px solid #1a2333;
+      margin-bottom: 16px;
+    }
+
+    .sidebar-menu .profile-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #d4af37;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 18px;
+      color: #000;
+    }
+
+    .sidebar-menu .profile-name {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .sidebar-menu .profile-email {
+      font-size: 0.7rem;
+      color: #8a99ad;
+    }
+
+    .menu-item {
+      padding: 12px 14px;
+      color: #8a99ad;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .menu-item:hover,
+    .menu-item:active {
+      background: #131c2d;
+      color: #fff;
+    }
+
+    .menu-item .icon {
+      font-size: 16px;
+      width: 24px;
+    }
+
+    .menu-item.gold {
+      color: #d4af37;
+    }
+
+    .menu-item.logout {
+      color: #ef4444;
+      margin-top: 8px;
+      border-top: 1px solid #1a2333;
+      padding-top: 16px;
+    }
+
+    .vip-card {
+      background: #0d1421;
+      border: 1px solid #1a2333;
+      border-radius: 8px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+
+    .vip-card .vip-title {
+      font-size: 0.65rem;
+      color: #8a99ad;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .vip-card .vip-stars {
+      display: flex;
+      gap: 3px;
+      margin-bottom: 6px;
+    }
+
+    .vip-card .vip-stars span {
+      font-size: 16px;
+      color: #d4af37;
+    }
+
+    .vip-card .vip-stars span.inactive {
+      color: #2a3346;
+    }
+
+    .vip-card .vip-progress {
+      height: 3px;
+      background: #1a2333;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .vip-card .vip-progress .fill {
+      height: 100%;
+      width: 60%;
+      background: #d4af37;
+      border-radius: 2px;
+    }
+
+    .vip-card .vip-claim {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .vip-card .vip-claim span {
+      font-size: 0.7rem;
+      color: #8a99ad;
+    }
+
+    .vip-card .vip-claim button {
+      background: #d4af37;
+      color: #000;
+      border: none;
+      padding: 4px 14px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+
+    /* ===== ROULETTE TABLE ===== */
+    .table-area {
+      padding: 12px 12px 8px 12px;
+      background: #0b4f32;
+      position: relative;
+      box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .table-area::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.3));
+      pointer-events: none;
+    }
+
+    .wheel-wrapper {
+      display: flex;
+      justify-content: center;
+      padding: 8px 0 4px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    #roulette-canvas {
+      width: 200px;
+      height: 200px;
+      max-width: 100%;
+    }
+
+    .timer-badge {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      background: #1a2638;
+      border: 1px solid #2e3e56;
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: #38bdf8;
+      z-index: 2;
+    }
+
+    /* Betting Grid */
+    .betting-grid {
+      display: grid;
+      grid-template-columns: 32px repeat(12, 1fr);
+      gap: 2px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px;
+      border-radius: 4px;
+      position: relative;
+      z-index: 1;
+      margin-top: 4px;
+    }
+
+    .bet-cell {
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.65rem;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: 0.1s;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
+
+    .bet-cell:active {
+      filter: brightness(1.4);
+    }
+
+    .bet-cell.red {
+      background: #cc1100;
+    }
+    .bet-cell.black {
+      background: #171717;
+    }
+    .bet-cell.zero {
+      grid-row: span 3;
+      background: #0f766e;
+      font-size: 0.85rem;
+    }
+
+    /* Outside Bets */
+    .outside-bets {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 3px;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .outside-bet {
+      height: 28px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.55rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.1s;
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
+
+    .outside-bet:active {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .outside-bet.red-bg {
+      background: #cc1100;
+    }
+    .outside-bet.black-bg {
+      background: #171717;
+    }
+
+    /* Chip Badge */
+    .chip-badge {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #d4af37;
+      color: #000;
+      font-size: 0.4rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid #fff;
+      pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+    }
+
+    /* ===== CHIP CONTROLS ===== */
+    .chip-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #0a0f1a;
+      border-top: 1px solid #1a2333;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .chip-controls .label {
+      font-size: 0.6rem;
+      color: #8a99ad;
+      font-weight: 600;
+      margin-right: 2px;
+    }
+
+    .chip {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2.5px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 0.55rem;
+      cursor: pointer;
+      transition: 0.15s;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      -webkit-touch-callout: none;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .chip:active {
+      transform: scale(0.92);
+    }
+
+    .chip.active {
+      transform: scale(1.12);
+      border-color: #d4af37;
+      box-shadow: 0 0 16px rgba(212, 175, 55, 0.4);
+    }
+
+    .chip-1 {
+      background: #2563eb;
+      color: #fff;
+    }
+    .chip-5 {
+      background: #059669;
+      color: #fff;
+    }
+    .chip-25 {
+      background: #d97706;
+      color: #fff;
+    }
+    .chip-100 {
+      background: #7c3aed;
+      color: #fff;
+    }
+    .chip-500 {
+      background: #dc2626;
+      color: #fff;
+    }
+
+    .spin-btn {
+      background: linear-gradient(180deg, #f3cf65 0%, #a88118 100%);
+      color: #000;
+      border: none;
+      padding: 6px 20px;
+      border-radius: 4px;
+      font-weight: 800;
+      font-size: 0.75rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: 0.15s;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .spin-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* ===== RESPONSIVE BREAKPOINTS ===== */
+    @media (min-width: 600px) {
+      .app-container {
+        max-width: 600px;
+      }
+
+      #roulette-canvas {
+        width: 260px;
+        height: 260px;
+      }
+
+      .bet-cell {
+        height: 42px;
+        font-size: 0.75rem;
+      }
+
+      .betting-grid {
+        grid-template-columns: 38px repeat(12, 1fr);
+      }
+
+      .outside-bet {
+        height: 34px;
+        font-size: 0.7rem;
+      }
+
+      .chip {
+        width: 40px;
+        height: 40px;
+        font-size: 0.7rem;
+      }
+
+      .chip-controls {
+        padding: 10px 16px;
+        gap: 8px;
+      }
+
+      .spin-btn {
+        padding: 8px 28px;
+        font-size: 0.85rem;
+      }
+
+      .header {
+        padding: 14px 20px;
+      }
+
+      .brand {
+        font-size: 1.3rem;
+      }
+
+      .table-area {
+        padding: 16px 16px 10px 16px;
+      }
+
+      .timer-badge {
+        font-size: 0.7rem;
+        padding: 4px 12px;
+      }
+    }
+
+    @media (min-width: 900px) {
+      .app-container {
+        max-width: 900px;
+        padding: 20px;
+        background: transparent;
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #06090e;
+        padding: 20px;
+      }
+
+      .app-container {
+        background: #0d1421;
+        border-radius: 16px;
+        border: 1px solid #1a2333;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        min-height: auto;
+      }
+
+      #roulette-canvas {
+        width: 280px;
+        height: 280px;
+      }
+
+      .bet-cell {
+        height: 44px;
+        font-size: 0.8rem;
+      }
+
+      .betting-grid {
+        grid-template-columns: 40px repeat(12, 1fr);
+      }
+
+      .outside-bet {
+        height: 36px;
+        font-size: 0.75rem;
+      }
+
+      .table-area {
+        padding: 20px 24px 14px 24px;
+      }
+
+      .chip {
+        width: 44px;
+        height: 44px;
+        font-size: 0.75rem;
+      }
+
+      .chip-controls {
+        padding: 12px 24px;
+        gap: 10px;
+      }
+
+      .spin-btn {
+        padding: 10px 36px;
+        font-size: 0.9rem;
+      }
+
+      .sidebar-overlay {
+        display: none !important;
+      }
+
+      .sidebar-menu {
+        display: none !important;
+      }
+
+      .profile-trigger {
+        display: none;
+      }
+
+      /* Desktop sidebar shown inline */
+      .desktop-sidebar {
+        display: block !important;
+      }
+    }
+
+    /* Desktop sidebar (hidden on mobile) */
+    .desktop-sidebar {
+      display: none;
+      padding: 20px;
+      border-left: 1px solid #1a2333;
+      min-width: 220px;
+      background: #080c14;
+    }
+
+    @media (min-width: 900px) {
+      .roulette-layout {
+        display: flex;
+      }
+      .table-area {
+        flex: 1;
+      }
+    }
+
+    /* Utility */
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<div class="sidebar">
-  <div class="brand">👑 ROYALSPIN</div>
-  <div class="nav-list">
-    <div class="nav-item active" onclick="switchTab('lobby')">🏠 All Games</div>
-    <div class="nav-item" onclick="switchTab('roulette')">🎰 European Roulette</div>
-    <div class="nav-item" onclick="switchTab('wallet')">💳 Cashier / Wallet</div>
-  </div>
-</div>
-
-<!-- MAIN -->
-<div class="main-content">
-  <header>
-    <div class="header-left"><span>Welcome, <strong id="user-display-name">Guest</strong></span></div>
-    <div class="header-right">
-      <div class="balance-pill"><span style="color:#8a99ad;">BALANCE:</span><strong id="balance-display-val" style="color: var(--gold);">$1,250.00</strong></div>
-      <button class="btn-gold" onclick="switchTab('wallet')">DEPOSIT</button>
-    </div>
-  </header>
-
-  <!-- LOBBY -->
-  <div id="lobby-page" class="page active">
-    <div style="background: linear-gradient(90deg, rgba(6,9,14,0.95) 40%, rgba(0,0,0,0.2)), url('https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=1600&q=80') center/cover; height: 240px; border-radius: 12px; border: 1px solid #1a2333; padding: 3rem; display: flex; flex-direction: column; justify-content: center; gap: 12px;">
-      <h1 style="font-family:'Cinzel'; font-size: 2.5rem; color: var(--gold);">PLAY BIG. WIN BIGGER.</h1>
-      <p style="color:#94a3b8; max-width: 500px;">Your favorite live casino tables, immersive games, and instant crypto settlements in one place.</p>
-    </div>
-    <h3 style="letter-spacing: 1px; color: var(--gold);">POPULAR GAMES</h3>
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.2rem;">
-      <div style="background: var(--panel-bg); border-radius: 8px; border: 1px solid #1a2333; overflow: hidden; cursor: pointer; transition: 0.2s;" onclick="switchTab('roulette')">
-        <img src="https://images.unsplash.com/photo-1606167668584-78701c57f13d?auto=format&fit=crop&w=600&q=80" style="width:100%; height:130px; object-fit:cover;" alt="Roulette">
-        <div style="padding: 10px; font-weight:700; text-align:center;">European Roulette</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ROULETTE PAGE — exact replica of panel #4 -->
-  <div id="roulette-page" class="page">
-    <div class="roulette-frame">
-      <div class="roulette-header-bar">
-        <div class="game-title-tag">EUROPEAN ROULETTE • LIVE</div>
-        <div class="timer-badge">BETS CLOSING IN: <span id="timer-val">15</span>s</div>
-      </div>
-
-      <div class="roulette-stage">
-        <div class="wheel-viewport">
-          <canvas id="roulette-canvas" width="340" height="340"></canvas>
+  <div class="app-container">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="brand">👑 ROYALSPIN</div>
+      <div class="header-right">
+        <div class="balance-mobile">
+          <span style="color:#8a99ad;font-weight:400;">BAL</span>
+          <span class="amount">$1,250</span>
         </div>
-        <div class="felt-viewport">
-          <div class="table-grid" id="number-grid">
-            <div class="table-cell zero" onclick="placeChip('number', 0, this)">0</div>
+        <div class="profile-trigger" onclick="toggleSidebar()">JD</div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR OVERLAY -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- SIDEBAR MENU -->
+    <div class="sidebar-menu" id="sidebarMenu">
+      <button class="close-btn" onclick="toggleSidebar()">✕</button>
+
+      <div class="profile-header">
+        <div class="profile-avatar">JD</div>
+        <div>
+          <div class="profile-name">John Doe</div>
+          <div class="profile-email">john@royalspin.com</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <button class="menu-item"><span class="icon">👤</span> My Profile</button>
+        <button class="menu-item gold"><span class="icon">💰</span> Deposit</button>
+        <button class="menu-item gold"><span class="icon">💳</span> Withdraw</button>
+        <button class="menu-item"><span class="icon">📊</span> Bet History</button>
+        <button class="menu-item"><span class="icon">🎁</span> Bonuses</button>
+        <button class="menu-item gold"><span class="icon">⭐</span> VIP Club</button>
+        <button class="menu-item logout"><span class="icon">🚪</span> Logout</button>
+      </div>
+
+      <div class="vip-card">
+        <div class="vip-title">VIP Status</div>
+        <div class="vip-stars">
+          <span>⭐</span><span>⭐</span><span>⭐</span><span>⭐</span><span class="inactive">⭐</span>
+        </div>
+        <div class="vip-progress"><div class="fill"></div></div>
+        <div class="vip-claim">
+          <span>1,250 / 5,000 XP</span>
+          <button>CLAIM</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROULETTE LAYOUT -->
+    <div class="roulette-layout">
+      <!-- TABLE AREA -->
+      <div class="table-area">
+        <div class="timer-badge">⏱ BETS CLOSING: <span id="timerDisplay">12</span>s</div>
+
+        <div class="wheel-wrapper">
+          <canvas id="roulette-canvas" width="280" height="280"></canvas>
+        </div>
+
+        <div class="betting-grid" id="numberGrid">
+          <div class="bet-cell zero" onclick="placeBet('zero', 0, this)">0</div>
+        </div>
+
+        <div class="outside-bets">
+          <div class="outside-bet" onclick="placeBet('1-18', '1-18', this)">1-18</div>
+          <div class="outside-bet" onclick="placeBet('even', 'EVEN', this)">EVEN</div>
+          <div class="outside-bet red-bg" onclick="placeBet('red', 'RED', this)">RED</div>
+          <div class="outside-bet black-bg" onclick="placeBet('black', 'BLACK', this)">BLACK</div>
+          <div class="outside-bet" onclick="placeBet('odd', 'ODD', this)">ODD</div>
+          <div class="outside-bet" onclick="placeBet('19-36', '19-36', this)">19-36</div>
+        </div>
+      </div>
+
+      <!-- DESKTOP SIDEBAR -->
+      <div class="desktop-sidebar">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid #1a2333;">
+            <div style="width:40px;height:40px;border-radius:50%;background:#d4af37;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#000;">JD</div>
+            <div>
+              <div style="font-weight:700;font-size:0.9rem;">John Doe</div>
+              <div style="font-size:0.65rem;color:#8a99ad;">john@royalspin.com</div>
+            </div>
           </div>
-          <div class="outside-row">
-            <div class="outside-cell" onclick="placeChip('1to18', '1-18', this)">1 to 18</div>
-            <div class="outside-cell" onclick="placeChip('even', 'EVEN', this)">EVEN</div>
-            <div class="outside-cell" style="background:var(--roulette-red); color:#fff;" onclick="placeChip('red', 'RED', this)">RED</div>
-            <div class="outside-cell" style="background:var(--roulette-black); color:#fff;" onclick="placeChip('black', 'BLACK', this)">BLACK</div>
-            <div class="outside-cell" onclick="placeChip('odd', 'ODD', this)">ODD</div>
-            <div class="outside-cell" onclick="placeChip('19to36', '19-36', this)">19 to 36</div>
+
+          <button class="menu-item"><span class="icon">👤</span> My Profile</button>
+          <button class="menu-item gold"><span class="icon">💰</span> Deposit</button>
+          <button class="menu-item gold"><span class="icon">💳</span> Withdraw</button>
+          <button class="menu-item"><span class="icon">📊</span> Bet History</button>
+          <button class="menu-item"><span class="icon">🎁</span> Bonuses</button>
+          <button class="menu-item gold"><span class="icon">⭐</span> VIP Club</button>
+          <button class="menu-item logout"><span class="icon">🚪</span> Logout</button>
+
+          <div class="vip-card">
+            <div class="vip-title">VIP Status</div>
+            <div class="vip-stars">
+              <span>⭐</span><span>⭐</span><span>⭐</span><span>⭐</span><span class="inactive">⭐</span>
+            </div>
+            <div class="vip-progress"><div class="fill"></div></div>
+            <div class="vip-claim">
+              <span>1,250 / 5,000 XP</span>
+              <button>CLAIM</button>
+            </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="roulette-controls">
-        <div class="chip-selector">
-          <span style="font-size: 0.8rem; font-weight:700; color:#8a99ad;">CHIP VALUE:</span>
-          <div class="casino-chip chip-1 selected" onclick="selectChipValue(1, this)">$1</div>
-          <div class="casino-chip chip-5" onclick="selectChipValue(5, this)">$5</div>
-          <div class="casino-chip chip-25" onclick="selectChipValue(25, this)">$25</div>
-          <div class="casino-chip chip-100" onclick="selectChipValue(100, this)">$100</div>
-        </div>
-        <button class="btn-gold" style="padding: 12px 36px; font-size: 1rem;" onclick="triggerSpin()">SPIN WHEEL</button>
-      </div>
+    <!-- CHIP CONTROLS -->
+    <div class="chip-controls">
+      <span class="label">CHIP:</span>
+      <div class="chip chip-1 active" onclick="selectChip(1, this)">$1</div>
+      <div class="chip chip-5" onclick="selectChip(5, this)">$5</div>
+      <div class="chip chip-25" onclick="selectChip(25, this)">$25</div>
+      <div class="chip chip-100" onclick="selectChip(100, this)">$100</div>
+      <div class="chip chip-500" onclick="selectChip(500, this)">$500</div>
+      <button class="spin-btn" onclick="spinWheel()">SPIN</button>
     </div>
   </div>
 
-  <!-- WALLET -->
-  <div id="wallet-page" class="page">
-    <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; width:100%;">
-      <div class="modal-box" style="max-width:100%;">
-        <h3 style="color:var(--gold); margin-bottom: 1rem;">Deposit Funds</h3>
-        <label>Payment Method</label>
-        <select id="dep-method"><option>USDT (TRC20)</option><option>Credit / Debit Card</option></select>
-        <label>Amount ($)</label>
-        <input type="number" id="dep-amount" value="100">
-        <label>Tx Hash / Slip Reference</label>
-        <input type="text" id="dep-tx" placeholder="Transaction Hash ID">
-        <button class="btn-gold" style="width:100%" onclick="submitDeposit()">Submit Deposit</button>
-      </div>
-      <div class="modal-box" style="max-width:100%;">
-        <h3 style="color:var(--gold); margin-bottom: 1rem;">Withdraw Funds</h3>
-        <label>Withdrawal Method</label>
-        <select id="with-method"><option>USDT TRC20 Wallet</option><option>Bank Wire Transfer</option></select>
-        <label>Amount ($)</label>
-        <input type="number" id="with-amount" value="50">
-        <label>Wallet Address / IBAN</label>
-        <input type="text" id="with-addr" placeholder="Address">
-        <button class="btn-gold" style="width:100%" onclick="submitWithdrawal()">Request Cashout</button>
-      </div>
-    </div>
-  </div>
-</div>
+  <script>
+    // ===== TOGGLE SIDEBAR =====
+    function toggleSidebar() {
+      const overlay = document.getElementById('sidebarOverlay');
+      const menu = document.getElementById('sidebarMenu');
+      overlay.classList.toggle('active');
+      menu.classList.toggle('open');
+    }
 
-<!-- AUTH MODAL -->
-<div id="auth-modal" class="modal-backdrop">
-  <div class="modal-box">
-    <h2 style="font-family:'Cinzel'; color:var(--gold); text-align:center; margin-bottom:1rem;">ROYALSPIN LOGIN</h2>
-    <input type="text" id="auth-user" placeholder="Username">
-    <input type="password" id="auth-pass" placeholder="Password">
-    <div style="display:flex; gap:10px;">
-      <button class="btn-gold" style="flex:1" onclick="performAuth('login')">LOGIN</button>
-      <button class="btn-gold" style="flex:1" onclick="performAuth('register')">REGISTER</button>
-    </div>
-  </div>
-</div>
+    // ===== ROULETTE ENGINE =====
+    const canvas = document.getElementById('roulette-canvas');
+    const ctx = canvas.getContext('2d');
 
-<script>
-const socket = io();
-let currentChipVal = 1;
-const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-const WHEEL_NUMBERS = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+    // Handle canvas sizing
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width || 280;
+      canvas.height = rect.height || 280;
+      drawWheel();
+    }
 
-// AUTH
-const token = localStorage.getItem('royalspin_token');
-if (token) socket.emit('auth', token);
+    const RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+    const WHEEL_NUMBERS = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 
-async function performAuth(type) {
-  const username = document.getElementById('auth-user').value;
-  const password = document.getElementById('auth-pass').value;
-  const res = await fetch(`/api/auth/${type}`, {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ username, password })
-  });
-  const data = await res.json();
-  if (data.error) return alert(data.error);
-  localStorage.setItem('royalspin_token', data.token);
-  document.getElementById('auth-modal').style.display = 'none';
-  socket.emit('auth', data.token);
-}
+    let wheelRotation = 0;
+    let ballAngle = 0;
+    let ballRadius = 0;
+    let currentChip = 1;
+    let isSpinning = false;
+    let timer = 12;
 
-socket.on('user_state', u => {
-  document.getElementById('auth-modal').style.display = 'none';
-  document.getElementById('user-display-name').innerText = u.username;
-  document.getElementById('balance-display-val').innerText = `$${u.balance.toFixed(2)}`;
-});
-socket.on('balance_update', bal => document.getElementById('balance-display-val').innerText = `$${bal.toFixed(2)}`);
-socket.on('notice', m => alert(m));
-socket.on('err_msg', m => alert(m));
+    function getRadius() {
+      return Math.min(canvas.width, canvas.height) / 2 - 10;
+    }
 
-// BUILD FELT GRID (12 columns x 3 rows)
-const grid = document.getElementById('number-grid');
-for (let row = 3; row >= 1; row--) {
-  for (let col = 1; col <= 12; col++) {
-    const num = (col - 1) * 3 + row;
-    const cell = document.createElement('div');
-    cell.className = `table-cell ${RED_NUMBERS.includes(num) ? 'red' : 'black'}`;
-    cell.innerText = num;
-    cell.onclick = () => placeChip('number', num, cell);
-    grid.appendChild(cell);
-  }
-}
+    function drawWheel() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const r = getRadius();
 
-function selectChipValue(val, el) {
-  currentChipVal = val;
-  document.querySelectorAll('.casino-chip').forEach(c => c.classList.remove('selected'));
-  el.classList.add('selected');
-}
+      ctx.clearRect(0, 0, w, h);
 
-function placeChip(type, target, el) {
-  socket.emit('roulette_place_bet', { type, target, amount: currentChipVal });
-  const chip = document.createElement('div');
-  chip.className = 'placed-chip-badge';
-  chip.innerText = `$${currentChipVal}`;
-  el.appendChild(chip);
-}
+      // Outer
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#2b1704';
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 15;
+      ctx.fill();
 
-function switchTab(tabId) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(l => l.classList.remove('active'));
-  document.getElementById(`${tabId}-page`).classList.add('active');
-}
+      // Gold ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, r - 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#d4af37';
+      ctx.fill();
 
-function submitDeposit() {
-  socket.emit('request_deposit', {
-    method: document.getElementById('dep-method').value,
-    amount: document.getElementById('dep-amount').value,
-    txHash: document.getElementById('dep-tx').value
-  });
-}
-function submitWithdrawal() {
-  socket.emit('request_withdrawal', {
-    method: document.getElementById('with-method').value,
-    amount: document.getElementById('with-amount').value,
-    address: document.getElementById('with-addr').value
-  });
-}
+      const numPockets = WHEEL_NUMBERS.length;
+      const sliceAngle = (Math.PI * 2) / numPockets;
+      const pocketRadius = r - 12;
 
-/* ===== ROULETTE CANVAS ENGINE ===== */
-const canvas = document.getElementById('roulette-canvas');
-const ctx = canvas.getContext('2d');
-const cx = canvas.width/2, cy = canvas.height/2, radius = 150;
-let wheelRotation = 0, ballAngle = 0, ballRadius = 135;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(wheelRotation);
 
-function drawRealisticRouletteWheel() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI*2);
-  ctx.fillStyle = '#2b1704';
-  ctx.shadowColor = '#000';
-  ctx.shadowBlur = 15;
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius-10, 0, Math.PI*2);
-  ctx.fillStyle = '#d4af37';
-  ctx.fill();
+      for (let i = 0; i < numPockets; i++) {
+        const angle = i * sliceAngle;
+        const num = WHEEL_NUMBERS[i];
 
-  const numPockets = WHEEL_NUMBERS.length;
-  const sliceAngle = (Math.PI*2)/numPockets;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(wheelRotation);
-  for (let i = 0; i < numPockets; i++) {
-    const angle = i*sliceAngle;
-    const num = WHEEL_NUMBERS[i];
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, radius-18, angle, angle+sliceAngle);
-    ctx.fillStyle = num===0 ? '#0f766e' : (RED_NUMBERS.includes(num) ? '#cc1100' : '#171717');
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(212,175,55,0.4)';
-    ctx.stroke();
-    ctx.save();
-    ctx.rotate(angle+sliceAngle/2);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 10px Inter';
-    ctx.fillText(num, radius-32, 4);
-    ctx.restore();
-  }
-  ctx.beginPath();
-  ctx.arc(0, 0, 45, 0, Math.PI*2);
-  ctx.fillStyle = 'radial-gradient(circle, #fef08a 0%, #a88118 100%)';
-  ctx.fill();
-  ctx.restore();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, pocketRadius, angle, angle + sliceAngle);
 
-  // Ball
-  ctx.save();
-  ctx.translate(cx, cy);
-  const bx = Math.cos(ballAngle)*ballRadius;
-  const by = Math.sin(ballAngle)*ballRadius;
-  ctx.beginPath();
-  ctx.arc(bx, by, 6, 0, Math.PI*2);
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = '#fff';
-  ctx.shadowBlur = 8;
-  ctx.fill();
-  ctx.restore();
-}
-drawRealisticRouletteWheel();
+        if (num === 0) ctx.fillStyle = '#0f766e';
+        else if (RED_NUMBERS.includes(num)) ctx.fillStyle = '#cc1100';
+        else ctx.fillStyle = '#171717';
 
-function triggerSpin() {
-  socket.emit('roulette_spin_request');
-}
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.25)';
+        ctx.stroke();
 
-socket.on('roulette_spin_start', data => {
-  const startTime = performance.now();
-  const duration = 7000;
-  function animate(time) {
-    const elapsed = time - startTime;
-    const progress = Math.min(elapsed/duration, 1);
-    const easeOut = 1 - Math.pow(1-progress, 3);
-    wheelRotation += 0.05 * (1 - easeOut);
-    ballAngle -= 0.18 * (1 - easeOut);
-    if (progress > 0.6) ballRadius = 135 - (45 * ((progress-0.6)/0.4));
-    else ballRadius = 135;
-    drawRealisticRouletteWheel();
-    if (progress < 1) requestAnimationFrame(animate);
-  }
-  requestAnimationFrame(animate);
-});
+        ctx.save();
+        ctx.rotate(angle + sliceAngle / 2);
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.max(8, r * 0.065)}px Inter`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(num, pocketRadius - r * 0.18, 0);
+        ctx.restore();
+      }
 
-socket.on('roulette_result', res => {
-  setTimeout(() => {
-    alert(`WINNING NUMBER: ${res.winningNumber} | Total Payout: $${res.payout}`);
-    document.querySelectorAll('.placed-chip-badge').forEach(c => c.remove());
-  }, 500);
-});
+      // Center
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2);
+      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.28);
+      grad.addColorStop(0, '#fef08a');
+      grad.addColorStop(1, '#a88118');
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
 
-// Timer simulation
-setInterval(() => {
-  const el = document.getElementById('timer-val');
-  if (el) {
-    let t = parseInt(el.innerText) - 1;
-    if (t < 0) t = 15;
-    el.innerText = t;
-  }
-}, 1000);
-</script>
+      // Ball
+      ctx.save();
+      ctx.translate(cx, cy);
+      const bx = Math.cos(ballAngle) * ballRadius;
+      const by = Math.sin(ballAngle) * ballRadius;
+      ctx.shadowColor = '#fff';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(bx, by, Math.max(4, r * 0.035), 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.restore();
+
+      ctx.shadowBlur = 0;
+    }
+
+    // Build number grid
+    const grid = document.getElementById('numberGrid');
+    for (let row = 3; row >= 1; row--) {
+      for (let col = 1; col <= 12; col++) {
+        const num = (col - 1) * 3 + row;
+        const cell = document.createElement('div');
+        cell.className = `bet-cell ${RED_NUMBERS.includes(num) ? 'red' : 'black'}`;
+        cell.textContent = num;
+        cell.onclick = () => placeBet('number', num, cell);
+        grid.appendChild(cell);
+      }
+    }
+
+    function selectChip(value, el) {
+      currentChip = value;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function placeBet(type, target, el) {
+      if (isSpinning) return;
+      const chip = document.createElement('div');
+      chip.className = 'chip-badge';
+      chip.textContent = `$${currentChip}`;
+      chip.style.left = (Math.random() * 20 + 10) + '%';
+      chip.style.top = (Math.random() * 20 + 10) + '%';
+      el.style.position = 'relative';
+      el.appendChild(chip);
+    }
+
+    function spinWheel() {
+      if (isSpinning) return;
+      isSpinning = true;
+
+      const startTime = performance.now();
+      const duration = 4500 + Math.random() * 2500;
+      const startRotation = wheelRotation;
+      const targetRotation = startRotation + (Math.PI * 2 * (4 + Math.random() * 5));
+
+      function animate(time) {
+        const elapsed = time - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+
+        wheelRotation = startRotation + (targetRotation - startRotation) * easeOut;
+
+        const r = getRadius();
+        if (progress > 0.4) {
+          ballRadius = r * 0.82 - (r * 0.45 * ((progress - 0.4) / 0.6));
+        } else {
+          ballRadius = r * 0.82;
+        }
+        ballAngle -= 0.12 * (1 - easeOut * 0.7);
+
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          isSpinning = false;
+          const resultIndex = Math.floor(((wheelRotation % (Math.PI * 2)) / (Math.PI * 2)) * WHEEL_NUMBERS.length);
+          const winningNumber = WHEEL_NUMBERS[resultIndex % WHEEL_NUMBERS.length];
+          setTimeout(() => {
+            alert(`🎰 WINNING NUMBER: ${winningNumber}`);
+            document.querySelectorAll('.chip-badge').forEach(c => c.remove());
+          }, 300);
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    // Timer
+    setInterval(() => {
+      timer = timer > 0 ? timer - 1 : 12;
+      document.getElementById('timerDisplay').textContent = timer;
+    }, 1000);
+
+    // Resize handler
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('load', () => {
+      setTimeout(resizeCanvas, 50);
+    });
+
+    // Initial draw
+    resizeCanvas();
+
+    // Close sidebar on escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const overlay = document.getElementById('sidebarOverlay');
+        const menu = document.getElementById('sidebarMenu');
+        overlay.classList.remove('active');
+        menu.classList.remove('open');
+      }
+    });
+  </script>
+
 </body>
 </html>
