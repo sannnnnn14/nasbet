@@ -1,5 +1,4 @@
 import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import bcrypt from 'bcryptjs';
@@ -9,17 +8,55 @@ const __dirname = dirname(__filename);
 
 let db;
 
+// Simple wrapper for sqlite3
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const database = new sqlite3.Database(
+      join(__dirname, 'casino.db'),
+      sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
+      (err) => {
+        if (err) reject(err);
+        else resolve(database);
+      }
+    );
+  });
+}
+
+// Promisify db methods
+function promisify(db) {
+  return {
+    get: (sql, params) => new Promise((resolve, reject) => {
+      db.get(sql, params, (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    }),
+    all: (sql, params) => new Promise((resolve, reject) => {
+      db.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    }),
+    run: (sql, params) => new Promise((resolve, reject) => {
+      db.run(sql, params, function(err) {
+        if (err) reject(err);
+        else resolve({ lastID: this.lastID, changes: this.changes });
+      });
+    }),
+    exec: (sql) => new Promise((resolve, reject) => {
+      db.exec(sql, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    })
+  };
+}
+
 export async function getDb() {
   if (!db) {
-    // On Railway, use /tmp for writable storage
-    const dbPath = process.env.RAILWAY_VOLUME_MOUNT_PATH 
-      ? join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'casino.db')
-      : join(__dirname, 'casino.db');
-    
-    db = await open({
-      filename: dbPath,
-      driver: sqlite3.Database
-    });
+    const rawDb = await openDb();
+    db = promisify(rawDb);
+    db.raw = rawDb;
     
     // Create all tables
     await db.exec(`
