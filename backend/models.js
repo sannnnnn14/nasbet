@@ -89,9 +89,9 @@ export const Transaction = {
     const pending = await db.get('SELECT COUNT(*) as count FROM transactions WHERE status = "pending"');
     return {
       totalUsers: totalUsers.count,
-      totalDeposits: totalDeposits.total,
-      totalWithdrawals: totalWithdrawals.total,
-      pendingTransactions: pending.count
+      totalDeposits: totalDeposits.total || 0,
+      totalWithdrawals: totalWithdrawals.total || 0,
+      pendingTransactions: pending.count || 0
     };
   }
 };
