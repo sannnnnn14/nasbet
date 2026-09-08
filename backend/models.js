@@ -43,7 +43,7 @@ export const Transaction = {
     const db = await getDb();
     const result = await db.run(
       'INSERT INTO transactions (user_id, type, amount, method, status, reference) VALUES (?, ?, ?, ?, ?, ?)',
-      userId, type, amount, method, status, reference
+      userId, type, amount, method, status, reference || `${type.toUpperCase()}-${Date.now()}`
     );
     return this.findById(result.lastID);
   },
@@ -83,10 +83,12 @@ export const Transaction = {
 
   async getStats() {
     const db = await getDb();
+    const totalUsers = await db.get('SELECT COUNT(*) as count FROM users');
     const totalDeposits = await db.get('SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = "deposit" AND status = "approved"');
     const totalWithdrawals = await db.get('SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE type = "withdrawal" AND status = "approved"');
     const pending = await db.get('SELECT COUNT(*) as count FROM transactions WHERE status = "pending"');
     return {
+      totalUsers: totalUsers.count,
       totalDeposits: totalDeposits.total,
       totalWithdrawals: totalWithdrawals.total,
       pendingTransactions: pending.count
