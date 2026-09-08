@@ -23,11 +23,11 @@ function openDb() {
   return new Promise((resolve, reject) => {
     const dbPath = join(__dirname, 'casino.db');
     
-    // Delete existing database if it exists (clean slate)
+    // ALWAYS delete existing database to avoid constraint issues
     if (fs.existsSync(dbPath)) {
       try {
         fs.unlinkSync(dbPath);
-        console.log('🗑️  Deleted old database');
+        console.log('🗑️ Deleted old database');
       } catch (e) {
         console.log('Could not delete old database');
       }
@@ -85,66 +85,75 @@ async function getDb() {
 async function initDb() {
   console.log('📦 Creating database tables...');
   
-  // Create tables
-  await db.exec(`
-    CREATE TABLE users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      balance REAL DEFAULT 1000,
-      role TEXT DEFAULT 'user',
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  try {
+    // Create tables with proper schema
+    await db.exec(`
+      CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        balance REAL DEFAULT 1000,
+        role TEXT DEFAULT 'user',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        amount REAL NOT NULL,
+        status TEXT DEFAULT 'pending',
+        method TEXT NOT NULL,
+        reference TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+      );
+
+      CREATE TABLE games (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        description TEXT,
+        min_bet REAL DEFAULT 1,
+        max_bet REAL DEFAULT 1000,
+        rtp INTEGER DEFAULT 96,
+        is_active INTEGER DEFAULT 1
+      );
+    `);
+
+    console.log('✅ Tables created');
+
+    // Create admin user - USE SPECIFIC VALUES
+    const adminEmail = 'admin@casino.com';
+    const adminUsername = 'admin';
+    const adminPassword = 'admin123';
+    
+    const hashedPassword = await bcrypt.hash(adminPassword, 12);
+    
+    // Insert admin with explicit values
+    const result = await db.run(
+      'INSERT INTO users (username, email, password, role, balance) VALUES (?, ?, ?, ?, ?)',
+      adminUsername, adminEmail, hashedPassword, 'admin', 1000
     );
+    console.log('✅ Admin created:', adminEmail, '/', adminPassword);
 
-    CREATE TABLE transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      type TEXT NOT NULL,
-      amount REAL NOT NULL,
-      status TEXT DEFAULT 'pending',
-      method TEXT NOT NULL,
-      reference TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id)
-    );
-
-    CREATE TABLE games (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      description TEXT,
-      min_bet REAL DEFAULT 1,
-      max_bet REAL DEFAULT 1000,
-      rtp INTEGER DEFAULT 96,
-      is_active INTEGER DEFAULT 1
-    );
-  `);
-
-  // Create admin user - USING HARDCODED VALUES to avoid null issues
-  const adminEmail = 'admin@casino.com';
-  const adminUsername = 'admin';
-  const adminPassword = 'admin123';
-  
-  const hashedPassword = await bcrypt.hash(adminPassword, 12);
-  
-  await db.run(
-    'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-    adminUsername, adminEmail, hashedPassword, 'admin'
-  );
-  console.log('✅ Admin created: admin@casino.com / admin123');
-
-  // Create sample games
-  await db.exec(`
-    INSERT INTO games (name, type, description, min_bet, max_bet) VALUES
-    ('Sweet Bonanza', 'slot', 'Sweet slot game with multipliers', 0.50, 100),
-    ('European Roulette', 'roulette', 'Classic roulette with single zero', 1.00, 500),
-    ('Blackjack Pro', 'blackjack', 'Professional blackjack', 5.00, 1000),
-    ('Crazy Time', 'live', 'Live game show with crazy multipliers', 1.00, 500),
-    ('Mega Jackpot', 'jackpot', 'Progressive jackpot', 2.00, 200)
-  `);
-  console.log('✅ Games created');
-  console.log('✅ Database ready!');
+    // Create sample games
+    await db.exec(`
+      INSERT INTO games (name, type, description, min_bet, max_bet) VALUES
+      ('Sweet Bonanza', 'slot', 'Sweet slot game with multipliers', 0.50, 100),
+      ('European Roulette', 'roulette', 'Classic roulette with single zero', 1.00, 500),
+      ('Blackjack Pro', 'blackjack', 'Professional blackjack', 5.00, 1000),
+      ('Crazy Time', 'live', 'Live game show with crazy multipliers', 1.00, 500),
+      ('Mega Jackpot', 'jackpot', 'Progressive jackpot', 2.00, 200)
+    `);
+    console.log('✅ Games created');
+    
+    console.log('✅ Database ready!');
+  } catch (error) {
+    console.error('❌ Database init error:', error);
+    throw error;
+  }
 }
 
 // ============ AUTH ROUTES ============
@@ -442,15 +451,18 @@ app.get('/health', (req, res) => {
 // ============ START SERVER ============
 const PORT = process.env.PORT || 5000;
 
+console.log('🚀 Starting Casino App...');
+
 // Initialize database and start server
 try {
   await getDb();
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 Server running on port ${PORT}`);
+    console.log(`\n✅ Server running on port ${PORT}`);
     console.log(`🔑 Admin: admin@casino.com / admin123`);
     console.log(`📊 API: http://localhost:${PORT}/api/games`);
     console.log(`❤️  Health: http://localhost:${PORT}/health\n`);
   });
 } catch (error) {
-  console.error('Failed to start:', error);
+  console.error('❌ Failed to start:', error);
+  process.exit(1);
 }
