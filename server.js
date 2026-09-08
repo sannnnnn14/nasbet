@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,15 +14,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const JWT_SECRET = 'your-secret-key-change-this';
+const JWT_SECRET = 'a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4';
 
 // ============ DATABASE ============
 let db;
 
 function openDb() {
   return new Promise((resolve, reject) => {
+    const dbPath = join(__dirname, 'casino.db');
+    
+    // Delete existing database if it exists (clean slate)
+    if (fs.existsSync(dbPath)) {
+      try {
+        fs.unlinkSync(dbPath);
+        console.log('🗑️  Deleted old database');
+      } catch (e) {
+        console.log('Could not delete old database');
+      }
+    }
+    
     const database = new sqlite3.Database(
-      join(__dirname, 'casino.db'),
+      dbPath,
       sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
       (err) => {
         if (err) reject(err);
@@ -70,16 +83,9 @@ async function getDb() {
 }
 
 async function initDb() {
-  // Drop existing tables if they exist (clean slate)
-  try {
-    await db.exec(`DROP TABLE IF EXISTS transactions`);
-    await db.exec(`DROP TABLE IF EXISTS games`);
-    await db.exec(`DROP TABLE IF EXISTS users`);
-  } catch (e) {
-    // Tables might not exist, ignore
-  }
-
-  // Create fresh tables
+  console.log('📦 Creating database tables...');
+  
+  // Create tables
   await db.exec(`
     CREATE TABLE users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,11 +121,16 @@ async function initDb() {
     );
   `);
 
-  // Create admin user with properly hashed password
-  const hashedPassword = await bcrypt.hash('admin123', 12);
+  // Create admin user - USING HARDCODED VALUES to avoid null issues
+  const adminEmail = 'admin@casino.com';
+  const adminUsername = 'admin';
+  const adminPassword = 'admin123';
+  
+  const hashedPassword = await bcrypt.hash(adminPassword, 12);
+  
   await db.run(
     'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-    'admin', 'admin@casino.com', hashedPassword, 'admin'
+    adminUsername, adminEmail, hashedPassword, 'admin'
   );
   console.log('✅ Admin created: admin@casino.com / admin123');
 
@@ -133,6 +144,7 @@ async function initDb() {
     ('Mega Jackpot', 'jackpot', 'Progressive jackpot', 2.00, 200)
   `);
   console.log('✅ Games created');
+  console.log('✅ Database ready!');
 }
 
 // ============ AUTH ROUTES ============
@@ -140,7 +152,6 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
     
-    // Validate input
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
     }
@@ -151,26 +162,22 @@ app.post('/api/auth/register', async (req, res) => {
 
     const db = await getDb();
     
-    // Check if user exists
     const existing = await db.get('SELECT * FROM users WHERE email = ? OR username = ?', email, username);
     if (existing) {
       return res.status(400).json({ error: 'User already exists' });
     }
     
-    // Hash password and create user
     const hashedPassword = await bcrypt.hash(password, 12);
     const result = await db.run(
       'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
       username, email, hashedPassword
     );
     
-    // Get the created user
     const user = await db.get(
       'SELECT id, username, email, balance, role FROM users WHERE id = ?', 
       result.lastID
     );
     
-    // Generate token
     const token = jwt.sign({ userId: user.id }, JWT_SECRET);
     res.json({ user, token });
   } catch (error) {
@@ -354,7 +361,6 @@ app.put('/api/admin/transactions/:id/approve', async (req, res) => {
   try {
     const db = await getDb();
     
-    // Get transaction
     const transaction = await db.get('SELECT * FROM transactions WHERE id = ?', req.params.id);
     if (!transaction) {
       return res.status(404).json({ error: 'Transaction not found' });
@@ -364,10 +370,8 @@ app.put('/api/admin/transactions/:id/approve', async (req, res) => {
       return res.status(400).json({ error: 'Transaction already processed' });
     }
     
-    // Update status
     await db.run('UPDATE transactions SET status = ? WHERE id = ?', 'approved', req.params.id);
     
-    // Update user balance
     if (transaction.type === 'deposit') {
       await db.run('UPDATE users SET balance = balance + ? WHERE id = ?', transaction.amount, transaction.user_id);
     } else if (transaction.type === 'withdrawal') {
