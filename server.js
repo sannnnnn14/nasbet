@@ -236,6 +236,20 @@ const htmlPage = `
         .endpoints li span {
             color: #ffd700;
         }
+        .api-test {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(46, 204, 113, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(46, 204, 113, 0.2);
+        }
+        .api-test a {
+            color: #2ecc71;
+            text-decoration: none;
+        }
+        .api-test a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -268,6 +282,20 @@ const htmlPage = `
             <p style="margin-top: 10px; color: #888;">
                 🔑 Admin: <code>admin@casino.com</code> / <code>admin123</code>
             </p>
+            
+            <div class="api-test">
+                <p style="color: #2ecc71;">✅ Test API endpoints:</p>
+                <p style="margin-top: 8px;">
+                    <a href="/api/games" target="_blank">📊 /api/games</a>
+                </p>
+                <p style="margin-top: 5px;">
+                    <a href="/api/admin/users" target="_blank">👥 /api/admin/users</a>
+                </p>
+                <p style="margin-top: 5px;">
+                    <a href="/api/admin/dashboard/stats" target="_blank">📈 /api/admin/dashboard/stats</a>
+                </p>
+            </div>
+
             <div class="endpoints">
                 <h4 style="color: #ffd700; margin-bottom: 10px;">📡 API Endpoints:</h4>
                 <ul>
@@ -295,10 +323,12 @@ const htmlPage = `
 
 // ============ ROUTES ============
 
-// Home page
+// Home page - MUST COME BEFORE API ROUTES
 app.get('/', (req, res) => {
   res.send(htmlPage);
 });
+
+// ============ API ROUTES ============
 
 // Auth
 app.post('/api/auth/register', async (req, res) => {
@@ -513,13 +543,6 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Catch all - serve HTML for any non-API route
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.send(htmlPage);
-  }
-});
-
 // ============ START ============
 const PORT = process.env.PORT || 5000;
 
@@ -532,7 +555,8 @@ try {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ Server running on port ${PORT}`);
     console.log(`🔑 Admin: admin@casino.com / admin123`);
-    console.log(`🌐 Open: http://localhost:${PORT}\n`);
+    console.log(`🌐 Open: http://localhost:${PORT}`);
+    console.log(`📊 API: http://localhost:${PORT}/api/games\n`);
   });
 } catch (error) {
   console.error('❌ Failed to start:', error);
