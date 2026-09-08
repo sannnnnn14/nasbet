@@ -2,6 +2,7 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -10,12 +11,17 @@ let db;
 
 export async function getDb() {
   if (!db) {
+    // On Railway, use /tmp for writable storage
+    const dbPath = process.env.RAILWAY_VOLUME_MOUNT_PATH 
+      ? join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'casino.db')
+      : join(__dirname, 'casino.db');
+    
     db = await open({
-      filename: join(__dirname, 'casino.db'),
+      filename: dbPath,
       driver: sqlite3.Database
     });
     
-    // Create tables
+    // Create all tables
     await db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,15 +76,15 @@ export async function getDb() {
       );
     `);
 
-    // Insert default admin if not exists
+    // Insert default admin user
     const admin = await db.get('SELECT * FROM users WHERE username = ?', 'admin');
     if (!admin) {
-      const bcrypt = await import('bcryptjs');
       const hashedPassword = await bcrypt.hash('admin123', 12);
       await db.run(
         'INSERT INTO users (username, email, password, role, is_verified) VALUES (?, ?, ?, ?, ?)',
         'admin', 'admin@casino.com', hashedPassword, 'admin', 1
       );
+      console.log('✅ Admin user created');
     }
 
     // Insert sample games
@@ -92,6 +98,7 @@ export async function getDb() {
         ('Crazy Time', 'live', 'Live game show with crazy multipliers', 1.00, 500.00, 96),
         ('Mega Jackpot', 'jackpot', 'Progressive jackpot with massive prizes', 2.00, 200.00, 92)
       `);
+      console.log('✅ Sample games created');
     }
   }
   return db;
