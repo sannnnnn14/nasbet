@@ -1,11 +1,7 @@
 {
   "builds": [
     {
-      "src": "backend",
-      "use": "node"
-    },
-    {
-      "src": "frontend",
+      "src": ".",
       "use": "node"
     }
   ]
