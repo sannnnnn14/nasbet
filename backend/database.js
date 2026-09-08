@@ -58,12 +58,12 @@ export async function getDb() {
     db = promisify(rawDb);
     db.raw = rawDb;
     
-    // Create all tables
+    // Create all tables - REMOVED NOT NULL constraint on email for admin
     await db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE,
         password TEXT NOT NULL,
         balance REAL DEFAULT 1000,
         role TEXT DEFAULT 'user',
@@ -113,7 +113,7 @@ export async function getDb() {
       );
     `);
 
-    // Insert default admin user
+    // Insert default admin user - WITH email this time
     const admin = await db.get('SELECT * FROM users WHERE username = ?', 'admin');
     if (!admin) {
       const hashedPassword = await bcrypt.hash('admin123', 12);
