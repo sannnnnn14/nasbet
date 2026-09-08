@@ -1,6 +1,7 @@
 import express from 'express';
 import { Transaction, User } from '../models.js';
-import { auth, admin } from '../middleware/admin.js';
+import { auth } from '../middleware/auth.js';
+import { admin } from '../middleware/admin.js';
 
 const router = express.Router();
 router.use(auth);
